@@ -6,3 +6,6 @@ app = Flask(__name__)
 def main_page():
     return "sup"
 
+@app.route()
+def func():
+    pass
