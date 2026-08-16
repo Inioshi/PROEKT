@@ -36,13 +36,16 @@ class VideoGame(Base):
     #rating will be calculated
 
     studio_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"), nullable=False)
-    studio: Mapped["User"] = relationship(back_populates="made_games")
-
     genres: Mapped[list["Genre"]] = relationship(secondary=assoc_game_genre, back_populates="games")
     tags: Mapped[list["Tag"]] = relationship(back_populates="game", cascade="all, delete-orphan")
-    reviews: Mapped[list["Review"]] = relationship(back_populates="game", cascade="all, delete-orphan") #every written review for the game
 
-    collections: Mapped[list["Collection"]] = relationship(secondary=assoc_game_collection, back_populates="games")
+    #every written review for the game
+    reviews: Mapped[list["Review"]] = relationship(back_populates="game",
+                                                   cascade="all, delete-orphan")
+
+    studio: Mapped["User"] = relationship(back_populates="made_games")
+    collections: Mapped[list["Collection"]] = relationship(secondary=assoc_game_collection,
+                                                           back_populates="games")
 
 class Tag(Base):
     """Model for user video game tags"""
