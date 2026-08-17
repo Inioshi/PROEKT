@@ -1,8 +1,30 @@
 {% extends "base.html" %}
 
 {% block title %}
-    {{ game.title }}
+    {{ game.title }} - GG
 {% endblock %}
 
 {% block content %}
+<div class="container py-5">
+
+    <h1 class="display-3 fw-bold text-center mb-4">
+        {{ game.title }}
+    </h1>
+
+    <div class="row justify-content-center">
+
+        <div class="col-md-4 text-center">
+            <img src="{{ game.img }}" alt="{{ game.title }}" class="img-fluid rounded">
+        </div>
+
+        <div class="col-md-6">
+            <strong>Genres:</strong>
+            <button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#genresModal">
+                {{ game.genres | join(" | ") }}
+            </button>
+        </div>
+
+        
+    </div>
+</div>
 {% endblock %}

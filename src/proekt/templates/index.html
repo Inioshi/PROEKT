@@ -4,21 +4,6 @@
 
 {% block content %}
 
-<nav class="navbar">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="/">GG</a>
-        <div>
-            <a href="/login" class="btn btn-outline-primary me-2">
-                Login
-            </a>
-
-            <a href="/register" class="btn btn-primary">
-                Register
-            </a>
-        </div>
-    </div>
-</nav>
-
 <main class="container text-center">
 
     <div class="mt-5">
@@ -32,17 +17,18 @@
         </p>
     </div>
 
-    <form action="/search" method="GET" class="row justify-content-center mt-4">
+    <form action="{{ url_for('search') }}" method="GET" class="row justify-content-center mt-4">
         <div class="col-md-6">
             <div class="input-group">
 
                 <select name="type" class="form-select" style="max-width: 150px;">
+                    <option value="">All</option>
                     <option value="name">Name</option>
                     <option value="genre">Genre</option>
                     <option value="studio">Studio</option>
                 </select>
 
-                <input type="text" name="q" class="form-control" placeholder="Search for a game..." required>
+                <input type="text" name="q" class="form-control" placeholder="Search games, genres and more..." required>
 
                 <button type="submit" class="btn btn-primary">
                     Search
