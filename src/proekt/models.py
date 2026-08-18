@@ -6,6 +6,8 @@ from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Boolean
 from sqlalchemy import DateTime, Table, Column, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from flask_login import UserMixin
+
 
 class Base(DeclarativeBase):
     pass
@@ -31,8 +33,8 @@ class VideoGame(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(50), nullable=False)
-    cover_url: Mapped[str | None] = mapped_column(String(500))
-    short_description: Mapped[str] = mapped_column(String(400), nullable=False)
+    cover_url: Mapped[str | None] = mapped_column(String(200))
+    short_description: Mapped[str] = mapped_column(String(600), nullable=False)
     studio_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"), nullable=False)
     genres: Mapped[list["Genre"]] = relationship(secondary=game_genre,
                                                  back_populates="games")
@@ -50,7 +52,7 @@ class Tag(Base):
 
     __tablename__ = "user_game_tag"
 
-    __table_args__ = (UniqueConstraint("user_id", "game_id", "game_tag", name="uq_user_game_tag"))
+    __table_args__ = (UniqueConstraint("user_id", "game_id", "tag", name="uq_user_game_tag"))
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"), nullable=False)
@@ -119,7 +121,7 @@ class UserRoles(Enum):
     STUDIO = "studio"
     ADMIN = "admin"
 
-class User(Base):
+class User(Base, UserMixin):
     """Contents that web app users have"""
 
     __tablename__ = "user_account"
