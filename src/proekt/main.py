@@ -58,38 +58,49 @@ def search():
 
     if not query_text:
         return render_template("search.html", query_text=query_text,
-                               search_type=search_type, games=[], studios=[])
+                               search_type=search_type, games=[], studios=[], users=[])
 
     with SessionLocal() as session:
-        games = []
-        studios = []
+        game_results = []
+        studio_results = []
+        users_results = []
         if search_type == "name":
-            games = session.scalars(
+            game_results = session.scalars(
                 select(VideoGame).where(VideoGame.title.ilike(f"%{query_text}%"))).all()
         elif search_type == "genre":
-            games = session.scalars(
+            game_results = session.scalars(
                 select(VideoGame).join(VideoGame.genres)
                                   .where(Genre.name.ilike(f"%{query_text}%"))).all()
         elif search_type == "studio":
-            studios = session.scalars(
+            studio_results = session.scalars(
                 select(User).where(User.role == UserRoles.STUDIO,
                                    User.username.ilike(f"%{query_text}%"))).all()
+        elif search_type == "user":
+            if current_user.is_authenticated:
+                users_results = session.scalars(
+                    select(User).where(User.role == UserRoles.REGISTERED_USER,
+                                       User.username.ilike(f"%{query_text}%"))).all()
         else:
-            games = session.scalars(
+            game_results = session.scalars(
                 select(VideoGame).outerjoin(VideoGame.genres)
                                   .outerjoin(User, VideoGame.studio_id == User.id)
                                   .where(or_(
                                       VideoGame.title.ilike(f"%{query_text}%"),
                                       Genre.name.ilike(f"%{query_text}%"),
                                       User.username.ilike(f"%{query_text}%"))).distinct()).all()
-            studios = session.scalars(
+            studio_results = session.scalars(
                 select(User).where(
                     User.role == UserRoles.STUDIO,
-                    User.username.ilike(f"%{query_text}%")
-                )
-            ).all()
+                    User.username.ilike(f"%{query_text}%"))).all()
+
+            if current_user.is_authenticated:
+                users_results = session.scalars(
+                    select(User).where(User.username.ilike(f"%{query_text}%"))).all()
         return render_template("search.html", query_text=query_text,
-                               search_type=search_type, games=games, studios=studios)
+                                              search_type=search_type,
+                                              games=game_results,
+                                              studios=studio_results,
+                                              users=users_results)
 
 @app.route("/collections/<int:collection_id>")
 @login_required
@@ -107,16 +118,16 @@ def collection_page(collection_id):
 @login_required
 def recommendations():
     with SessionLocal() as session:
-        games = compute_recommendations(session, current_user.id)
-        return render_template("recommendations.html", games=games)
+        games_rec = compute_recommendations(session, current_user.id)
+        return render_template("recommendations.html", games=games_rec)
 
 
 @app.errorhandler(404)
-def not_found(error):
+def not_found(_error):
     return render_template("error.html", code=404, message="Page not found."), 404
 
 @app.errorhandler(403)
-def forbidden(error):
+def forbidden(_error):
     return render_template("error.html", code=403, message="No permission to view page"), 403
 
 if __name__ == "__main__":

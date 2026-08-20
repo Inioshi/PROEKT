@@ -9,7 +9,7 @@
         Search results for "{{ query_text }}"
     </h1>
 
-    {% if not games and not studios %}
+    {% if not games and not studios and not users %}
         <p class="text-muted">No results found.</p>
     {% endif %}
 
@@ -51,5 +51,22 @@
     </ul>
     {% endif %}
 
+    {% if users %}
+    <h2 class="h5 mb-3">Users</h2>
+    <ul class="list-group mb-4">
+        {% for user in users %}
+            <li class="list-group-item">
+                <a href="{{ url_for('profile', user_id=user.id) }}">
+                    {{ user.username }}
+                </a>
+                {% if user.role == UserRoles.STUDIO %}
+                    <span class="badge text-bg-secondary">
+                        Studio
+                    </span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
 </div>
 {% endblock %}

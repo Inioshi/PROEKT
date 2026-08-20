@@ -26,6 +26,10 @@
                     <option value="name">Name</option>
                     <option value="genre">Genre</option>
                     <option value="studio">Studio</option>
+
+                    {% if current_user.is_authenticated %}
+                        <option value="user">User</option>
+                    {% endif %}
                 </select>
 
                 <input type="text" name="q" class="form-control" placeholder="Search games, genres and more..." required>
