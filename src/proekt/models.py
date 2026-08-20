@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Enum as SQLEnum, ForeignKey, Integer, String, Boolean
 from sqlalchemy import DateTime, Table, Column, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from flask_login import UserMixin
 
@@ -13,15 +14,15 @@ class Base(DeclarativeBase):
     pass
 
 #association table between games and genres
-game_genre = Table(
-        "game_genre",
+genres_for_games = Table(
+        "genres_for_games",
         Base.metadata,
         Column("video_game_id", ForeignKey("video_game.id"), primary_key=True),
         Column("genre_id", ForeignKey("genre.id"), primary_key=True))
 
 #association table between games and collections
-collection_game = Table(
-        "collection_game",
+collections_for_games = Table(
+        "collections_for_games",
         Base.metadata,
         Column("video_game_id", ForeignKey("video_game.id"), primary_key=True),
         Column("game_collection_id", ForeignKey("game_collection.id"), primary_key=True))
@@ -36,9 +37,9 @@ class VideoGame(Base):
     cover_url: Mapped[str | None] = mapped_column(String(200))
     short_description: Mapped[str] = mapped_column(String(600), nullable=False)
     studio_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"), nullable=False)
-    genres: Mapped[list["Genre"]] = relationship(secondary=game_genre,
+    genres: Mapped[list["Genre"]] = relationship(secondary=genres_for_games,
                                                  back_populates="games")
-    collections: Mapped[list["Collection"]] = relationship(secondary=collection_game,
+    collections: Mapped[list["Collection"]] = relationship(secondary=collections_for_games,
                                                            back_populates="games")
     tags: Mapped[list["Tag"]] = relationship(back_populates="game",
                                              cascade="all, delete-orphan")
@@ -47,12 +48,19 @@ class VideoGame(Base):
     studio: Mapped["User"] = relationship(foreign_keys=[studio_id],
                                           back_populates="made_games")
 
+    @hybrid_property
+    def average_rating(self):
+        """Calculating the average rating of a game"""
+        if not self.reviews:
+            return None
+        return sum(r.rating for r in self.reviews) / len(self.reviews)
+
 class Tag(Base):
     """Contents of a game tag"""
 
     __tablename__ = "user_game_tag"
 
-    __table_args__ = (UniqueConstraint("user_id", "game_id", "tag", name="uq_user_game_tag"))
+    __table_args__ = (UniqueConstraint("user_id", "game_id", "tag", name="uq_user_game_tag"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"), nullable=False)
@@ -68,7 +76,7 @@ class Genre(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
-    games: Mapped[list["VideoGame"]] = relationship(secondary=game_genre, back_populates="genres")
+    games: Mapped[list["VideoGame"]] = relationship(secondary=genres_for_games, back_populates="genres")
 
 class Review(Base):
     """Contents of a game review"""
@@ -93,14 +101,15 @@ class DefaultCollection(Enum):
     """Default collections that every registered user should have,
         these collections cannot be deleted"""
 
-    WISHLIST = "wishlist"
-    PLAYING = "playing"
-    COMPLETED = "completed"
+    WISHLIST = "Wishlist"
+    PLAYING = "Playing"
+    COMPLETED = "Completed"
 
 class Collection(Base):
     """Contents of a game collection"""
 
     __tablename__ = "game_collection"
+    __table_args__ = (UniqueConstraint("user_id", "default_type", name="uq_user_default_collection"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user_account.id"), nullable=False)
@@ -109,7 +118,7 @@ class Collection(Base):
     default_type: Mapped[DefaultCollection | None] = mapped_column(SQLEnum(DefaultCollection),
                                                                    nullable=True)
     user: Mapped["User"] = relationship(back_populates="collections")
-    games: Mapped[list["VideoGame"]] = relationship(secondary=collection_game,
+    games: Mapped[list["VideoGame"]] = relationship(secondary=collections_for_games,
                                                     back_populates="collections")
 
 class UserRoles(Enum):
@@ -146,6 +155,21 @@ class User(Base, UserMixin):
     friendreq_accepted: Mapped[list["Friendship"]] = relationship(
             foreign_keys="Friendship.friend_id",
             back_populates="friend")
+
+    @property
+    def friends(self) -> list["User"]:
+        """Function for friends lists"""
+        friends = []
+
+        for friendship in self.friendreq_sent:
+            if friendship.status == FriendStatus.ACCEPTED:
+                friends.append(friendship.friend)
+
+        for friendship in self.friendreq_accepted:
+            if friendship.status == FriendStatus.ACCEPTED:
+                friends.append(friendship.user)
+
+        return friends
 
 class FriendStatus(Enum):
     """Friendship status between users"""

@@ -14,17 +14,91 @@
     <div class="row justify-content-center">
 
         <div class="col-md-4 text-center">
-            <img src="{{ game.img }}" alt="{{ game.title }}" class="img-fluid rounded">
+            {% if game.cover_url %}
+            <img src="{{ game.cover_url }}" alt="{{ game.title }}" class="img-fluid rounded">
+            {% else %}
+            <div class="bg-secondary bg-opacity-25 rounded d-flex align-items-center justify-content-center"
+                 style="height: 350px;">
+                <span class="text-muted">No cover available</span>
+            </div>
+            {% endif %}
         </div>
 
         <div class="col-md-6">
-            <strong>Genres:</strong>
-            <button class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#genresModal">
-                {{ game.genres | join(" | ") }}
-            </button>
-        </div>
+            <p>
+                <strong>Genres:</strong>
+                {% for genre in game.genres %}
+                    <span class="badge bg-secondary">
+                        {{ genre.name }}
+                    </span>
+                {% endfor %}
+            </p>
 
-        
+            <p>
+                <strong>Studio:</strong>
+                <a href="{{ url_for('profile', user_id=game.studio.id) }}">
+                    {{ game.studio.username }}
+                </a>
+            </p>
+
+            <p>
+                <strong>Average rating:</strong>
+                {% if game.average_rating is not none %}
+                   ⭐ {{ "%.1f" | format(game.average_rating) }} / 5
+                {% else %}
+                    <span class="text-muted">No ratings yet</span>
+                {% endif %}
+            </p>
+
+            <p>
+                <strong>Description:</strong><br>
+                {{ game.short_description }}
+            </p>
+        </div>
+    </div>
+
+    <div class="mt-5">
+        <h2 class="mb-4">Reviews</h2>
+        <div class="accordion" id="reviewsAccordion">
+            {% for review in game.reviews %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ review.id }}">
+                        <button
+                        class="accordion-button collapsed"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#review{{ review.id }}"
+                            aria-expanded="false"
+                            aria-controls="review{{ review.id }}">
+                            <strong>{{ review.user.username }}</strong>
+                            &nbsp; — &nbsp;
+                            ⭐ {{ review.rating }}/5
+                        </button>
+                    </h2>
+
+                    <div
+                        id="review{{ review.id }}"
+                        class="accordion-collapse collapse"
+                        aria-labelledby="heading{{ review.id }}"
+                        data-bs-parent="#reviewsAccordion">
+                        <div class="accordion-body">
+                            {% if review.comment %}
+                                <p>{{ review.comment }}</p>
+                            {% else %}
+                                <p class="text-muted">
+                                    No comment provided.
+                                </p>
+                            {% endif %}
+                            <small class="text-muted">
+                                {{ review.created_at.strftime("%d %B %Y") }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <p class="text-muted">No reviews yet.</p>
+            {% endfor %}
+        </div>
     </div>
 </div>
 {% endblock %}
