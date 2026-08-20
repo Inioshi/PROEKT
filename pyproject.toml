@@ -26,3 +26,8 @@ python_version = "3.13"
 [[tool.mypy.overrides]]
 module = ["flask_login"]
 ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

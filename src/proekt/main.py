@@ -4,11 +4,9 @@ from flask_login import login_required, current_user
 from proekt.auth import auth, login_manager
 from proekt.database import SessionLocal
 from proekt.models import VideoGame, User, UserRoles, Genre, Collection
-from proekt.games import games
-from proekt.collections import collections_bp
-from proekt.tags import tags_bp
-from proekt.friends import friends_bp
 from proekt.recommendations import compute_recommendations
+
+from proekt.crud import reviews
 
 app = Flask(__name__)
 
@@ -16,10 +14,11 @@ app.config["SECRET_KEY"] = "passpass"
 
 login_manager.init_app(app)
 app.register_blueprint(auth)
-app.register_blueprint(games)
-app.register_blueprint(collections_bp)
-app.register_blueprint(tags_bp)
-app.register_blueprint(friends_bp)
+#app.register_blueprint(games)
+#app.register_blueprint(collections_bp)
+#app.register_blueprint(tags_bp)
+#app.register_blueprint(friends_bp)
+app.register_blueprint(reviews)
 
 @app.route("/")
 def index():
@@ -100,7 +99,8 @@ def search():
                                               search_type=search_type,
                                               games=game_results,
                                               studios=studio_results,
-                                              users=users_results)
+                                              users=users_results,
+                                              UserRoles=UserRoles)
 
 @app.route("/collections/<int:collection_id>")
 @login_required
@@ -120,7 +120,6 @@ def recommendations():
     with SessionLocal() as session:
         games_rec = compute_recommendations(session, current_user.id)
         return render_template("recommendations.html", games=games_rec)
-
 
 @app.errorhandler(404)
 def not_found(_error):
