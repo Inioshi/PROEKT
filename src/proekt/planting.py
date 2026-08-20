@@ -204,9 +204,9 @@ def plant_in_database():
         with session.begin():
             plant_genres(session)
             plant_users(session)
+            plant_games(session)
             plant_collections(session)
             plant_collection_games(session)
-            plant_games(session)
             plant_tags(session)
             plant_reviews(session)
             plant_friendship(session)

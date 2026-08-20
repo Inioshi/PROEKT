@@ -64,9 +64,61 @@
                 <strong>Description:</strong><br>
                 {{ game.short_description }}
             </p>
+
+
+            {% if current_user.is_authenticated %}
+                <div class="mt-4">
+                    <strong>My Tags:</strong>
+
+                    {% set my_tags = game.tags | selectattr("user_id", "equalto", current_user.id) | list %}
+
+                    {% if my_tags %}
+                        <div class="mb-3">
+                            {% for tag in my_tags %}
+                                <span class="badge bg-secondary me-1">
+                                    {{ tag.tag }}
+
+                                    <form method="POST"
+                                        action="{{ url_for('tags.remove_tag', tag_id=tag.id) }}"
+                                        class="d-inline">
+
+                                        <button type="submit"
+                                            class="btn-close btn-close-white"
+                                            aria-label="Remove tag">
+                                        </button>
+                                    </form>
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No tags added yet.</p>
+                    {% endif %}
+
+                <form method="POST"
+                      action="{{ url_for('tags.add_tag', game_id=game.id) }}">
+
+                    <div class="input-group">
+                        <input type="text"
+                               name="tag"
+                               class="form-control"
+                               placeholder="Add a tag"
+                               required>
+                    
+                        <button type="submit" class="btn btn-primary">
+                            Add
+                        </button>
+                    </div>
+                
+                </form>
+            </div>
+            {% endif %}
+
+
         </div>
     </div>
+</div>
 
+<div class="container py-5">
     {% if current_user.is_authenticated %}
     <div class="mt-5">
         <h2 class="mb-3">Write a review</h2>

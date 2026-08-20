@@ -6,7 +6,7 @@ from proekt.database import SessionLocal
 from proekt.models import VideoGame, User, UserRoles, Genre, Collection
 from proekt.recommendations import compute_recommendations
 
-from proekt.crud import reviews
+from proekt.crud import reviews, tags
 
 app = Flask(__name__)
 
@@ -16,9 +16,9 @@ login_manager.init_app(app)
 app.register_blueprint(auth)
 #app.register_blueprint(games)
 #app.register_blueprint(collections_bp)
-#app.register_blueprint(tags_bp)
 #app.register_blueprint(friends_bp)
 app.register_blueprint(reviews)
+app.register_blueprint(tags)
 
 @app.route("/")
 def index():
@@ -48,7 +48,9 @@ def profile(user_id):
         if not current_user.is_authenticated and user.role != UserRoles.STUDIO:
             abort(403)
 
-        return render_template("user_profile.html", user=user, UserRoles=UserRoles)
+        tags_lst = list(user.tags) if current_user.is_authenticated and current_user.id == user.id else []
+
+        return render_template("user_profile.html", user=user, UserRoles=UserRoles, tags=tags_lst)
 
 @app.route("/search")
 def search():
