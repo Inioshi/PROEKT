@@ -1,13 +1,13 @@
 """Login and register logic for the web app"""
 
-from flask import render_template, request, url_for, redirect, Blueprint, flash
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-
+from functools import wraps
 from sqlalchemy import select
+from flask import render_template, request, url_for, redirect, Blueprint, flash, abort
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from .database import SessionLocal
-from .models import User, UserRoles
+from .models import User, UserRoles, Collection, DefaultCollection
 
 auth = Blueprint("auth", __name__)
 
@@ -36,7 +36,7 @@ def login():
 
             login_user(user)
 
-        return redirect(url_for("profile"))
+        return redirect(url_for("profile", user_id=user.id))
     return render_template("login.html")
 
 @auth.route("/register", methods=["GET", "POST"])
@@ -58,15 +58,42 @@ def register():
                 flash("Username is already taken.")
                 return redirect(url_for("auth.register"))
 
-            user = User(username=username,password_hash=generate_password_hash(password),role=UserRoles.REGISTERED_USER)
+            is_studio = request.form.get("is_studio") == "on"
 
+            role = UserRoles.STUDIO if is_studio else UserRoles.REGISTERED_USER
+
+            user = User(username=username,password_hash=generate_password_hash(password),
+                        role=role)
             session.add(user)
+            session.flush()
+
+            default_collections = [
+                Collection(user_id=user.id, name="Wishlisted", is_default=True,
+                           default_type=DefaultCollection.WISHLIST),
+                Collection(user_id=user.id, name="Playing", is_default=True,
+                           default_type=DefaultCollection.PLAYING),
+                Collection(user_id=user.id, name="Completed", is_default=True,
+                           default_type=DefaultCollection.COMPLETED),]
+
+            session.add_all(default_collections)
             session.commit()
 
         flash("Account created successfully.")
         return redirect(url_for("auth.login"))
 
     return render_template("register.html")
+
+def roles_required(*roles):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return login_manager.unauthorized()
+            if current_user.role not in roles:
+                abort(403)
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
 
 @auth.route("/logout")
 @login_required
