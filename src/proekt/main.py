@@ -1,12 +1,12 @@
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, and_
 from flask import Flask, render_template, request, abort
 from flask_login import login_required, current_user
 from proekt.auth import auth, login_manager
 from proekt.database import SessionLocal
-from proekt.models import VideoGame, User, UserRoles, Genre, Collection
+from proekt.models import VideoGame, User, UserRoles, Genre, Collection, Friendship, FriendStatus
 from proekt.recommendations import compute_recommendations
 
-from proekt.crud import reviews, tags, collections
+from proekt.crud import reviews, tags, collections, friends
 
 app = Flask(__name__)
 
@@ -15,10 +15,11 @@ app.config["SECRET_KEY"] = "passpass"
 login_manager.init_app(app)
 app.register_blueprint(auth)
 #app.register_blueprint(games)
-#app.register_blueprint(friends_bp)
+
 app.register_blueprint(reviews)
 app.register_blueprint(tags)
 app.register_blueprint(collections)
+app.register_blueprint(friends)
 
 @app.route("/")
 def index():
@@ -62,8 +63,31 @@ def profile(user_id):
                 grouped.setdefault(t.tag, []).append(t)
             group_tags = list(grouped.items())
 
-        return render_template("user_profile.html", user=user,
-                               UserRoles=UserRoles, group_tags=group_tags)
+        friends_list = []
+        incoming_requests = []
+        friendship_with_viewer = None
+
+        if current_user.is_authenticated and current_user.id == user.id:
+            friends_list = user.friends
+            incoming_requests = session.scalars(
+                select(Friendship).where(Friendship.friend_id == user.id,
+                                         Friendship.status == FriendStatus.PENDING)).all()
+        elif current_user.is_authenticated:
+            exists = session.scalar(
+                select(Friendship).where(
+                    or_(and_(Friendship.user_id == current_user.id, Friendship.friend_id == user.id),
+                        and_(Friendship.user_id == user.id, Friendship.friend_id == current_user.id))))
+            if exists is not None:
+                if exists.status == FriendStatus.ACCEPTED:
+                    friendship_with_viewer = "friends"
+                elif exists.status == FriendStatus.PENDING:
+                    friendship_with_viewer = ("pending_sent" if exists.user_id == current_user.id
+                                              else "pending_received")
+
+        return render_template("user_profile.html", user=user, UserRoles=UserRoles,
+                               group_tags=group_tags, friends_list=friends_list,
+                               incoming_requests=incoming_requests,
+                               friendship_with_viewer=friendship_with_viewer)
 
 @app.route("/search")
 def search():
