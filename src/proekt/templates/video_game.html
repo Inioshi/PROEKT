@@ -113,6 +113,34 @@
             </div>
             {% endif %}
 
+            {% if current_user.is_authenticated %}
+                <div class="mt-4">
+                    <strong>My Collections:</strong>
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        {% for collection in user_collections %}
+                            {% if game in collection.games %}
+                            <form method="POST"
+                                  action="{{ url_for('collections.remove_game_from_collection',
+                                                     collection_id=collection.id,
+                                                     game_id=game.id) }}">
+                                <button type="submit" class="btn btn-sm btn-secondary">
+                                    ✓ {{ collection.name }}
+                                </button>
+                            </form>
+                            {% else %}
+                            <form method="POST"
+                                  action="{{ url_for('collections.add_game_to_collection',
+                                                     collection_id=collection.id) }}">
+                                <input type="hidden" name="game_id" value="{{ game.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                    + {{ collection.name }}
+                                </button>
+                            </form>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
 
         </div>
     </div>

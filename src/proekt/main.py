@@ -6,7 +6,7 @@ from proekt.database import SessionLocal
 from proekt.models import VideoGame, User, UserRoles, Genre, Collection
 from proekt.recommendations import compute_recommendations
 
-from proekt.crud import reviews, tags
+from proekt.crud import reviews, tags, collections
 
 app = Flask(__name__)
 
@@ -15,10 +15,10 @@ app.config["SECRET_KEY"] = "passpass"
 login_manager.init_app(app)
 app.register_blueprint(auth)
 #app.register_blueprint(games)
-#app.register_blueprint(collections_bp)
 #app.register_blueprint(friends_bp)
 app.register_blueprint(reviews)
 app.register_blueprint(tags)
+app.register_blueprint(collections)
 
 @app.route("/")
 def index():
@@ -36,7 +36,14 @@ def game_page(game_id):
             if game.reviews
             else None)
 
-        return render_template("video_game.html", game=game, average_rating=average_rating)
+        user_collections = []
+        if current_user.is_authenticated:
+            user_collections = session.scalars(
+                select(Collection).where(Collection.user_id == current_user.id)).all()
+
+        return render_template("video_game.html", game=game,
+                               average_rating=average_rating,
+                               user_collections=user_collections)
 
 @app.route("/profile/<int:user_id>")
 def profile(user_id):
@@ -117,8 +124,6 @@ def collection_page(collection_id):
         collection = session.get(Collection, collection_id)
         if collection is None:
             abort(404)
-        if collection.user_id != current_user.id:
-            abort(403)
 
         return render_template("collection.html", collection=collection)
 

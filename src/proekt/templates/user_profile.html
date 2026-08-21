@@ -8,20 +8,42 @@
     <h1 class="display-4 fw-bold mb-4">{{ user.username }}</h1>
 
     <h2 class="h4 mt-5 mb-3">Collections</h2>
-
+ 
+    {% if current_user.is_authenticated and current_user.id == user.id %}
+    <form method="POST" action="{{ url_for('collections.create_collection') }}" class="mb-4">
+        <div class="input-group" style="max-width: 400px;">
+            <input type="text" name="name" class="form-control"
+                   placeholder="New collection name" maxlength="50" required>
+            <button type="submit" class="btn btn-primary">Create collection</button>
+        </div>
+    </form>
+    {% endif %}
+ 
     <div class="row">
         {% for collection in user.collections %}
         <div class="col-md-4 mb-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">
-                        <a href="{{ url_for('collection_page', collection_id=collection.id) }}">
-                            {{ collection.name }}
-                        </a>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title">
+                            <a href="{{ url_for('collection_page', collection_id=collection.id) }}">
+                                {{ collection.name }}
+                            </a>
                             {% if collection.is_default %}
-                        <span class="badge text-bg-secondary">default</span>
+                            <span class="badge text-bg-secondary">default</span>
                             {% endif %}
-                    </h5>
+                        </h5>
+ 
+                        {% if not collection.is_default and current_user.is_authenticated and current_user.id == user.id %}
+                        <button class="btn btn-sm btn-secondary"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#editCollection{{ collection.id }}">
+                            Edit
+                        </button>
+                        {% endif %}
+                    </div>
+ 
                     <p class="card-text">
                         {{ collection.games | length }} game(s)
                     </p>
@@ -34,6 +56,29 @@
                         </li>
                         {% endfor %}
                     </ul>
+ 
+                    {% if not collection.is_default and current_user.is_authenticated and current_user.id == user.id %}
+                    <div class="collapse mt-3" id="editCollection{{ collection.id }}">
+                        <form method="POST"
+                              action="{{ url_for('collections.edit_collection', collection_id=collection.id) }}">
+                            <div class="mb-2">
+                                <label class="form-label">Rename</label>
+                                <input type="text" name="name" class="form-control"
+                                       value="{{ collection.name }}" maxlength="50" required>
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                Save changes
+                            </button>
+                        </form>
+                        <form method="POST"
+                              action="{{ url_for('collections.delete_collection', collection_id=collection.id) }}"
+                              class="mt-2">
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                Delete collection
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -115,6 +160,7 @@
         {% endif %}
     </div>
 
+    {% if current_user.is_authenticated and current_user.id == user.id %}
     <h2 class="h4 mt-5 mb-3">My Tags</h2>
 
     {% if group_tags %}
@@ -145,18 +191,15 @@
                         {% endfor %}
                     </ul>
                 </div>
-        
-                {% if current_user.is_authenticated and current_user.id == user.id %}
+
                 <button class="btn btn-sm btn-secondary"
                         type="button"
                         data-bs-toggle="collapse"
                         data-bs-target="#editTagGroup{{ loop.index }}">
                         Edit
                 </button>
-                {% endif %}
         </div>
 
-            {% if current_user.is_authenticated and current_user.id == user.id %}
             <div class="collapse mt-3" id="editTagGroup{{ loop.index }}">
                 <form method="POST" action="{{ url_for('tags.edit_tag') }}">
                     <input type="hidden" name="old_tag" value="{{ tag_text }}">
@@ -173,12 +216,13 @@
                     </button>
                 </form>
             </div>
-                {% endif %}
         </div>
         {% endfor %}
     </div>
     {% else %}
         <p class="text-muted">You haven't created any tags yet.</p>
     {% endif %}
+    {% endif %}
+
 </div>
 {% endblock %}

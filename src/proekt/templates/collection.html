@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+ 
+{% block title %}{{ collection.name }} - GG{% endblock %}
+ 
+{% block content %}
+<div class="container py-5">
+ 
+    <a href="{{ url_for('profile', user_id=collection.user_id) }}" class="d-inline-block mb-3">
+        &larr; Back to {{ collection.user.username }}'s profile
+    </a>
+ 
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-warning">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+ 
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold mb-0">
+            {{ collection.name }}
+            {% if collection.is_default %}
+            <span class="badge text-bg-secondary">default</span>
+            {% endif %}
+        </h1>
+ 
+        {% if current_user.is_authenticated and current_user.id == collection.user_id and not collection.is_default %}
+        <button class="btn btn-sm btn-secondary"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#editCollection">
+            Edit
+        </button>
+        {% endif %}
+    </div>
+ 
+    {% if current_user.is_authenticated and current_user.id == collection.user_id and not collection.is_default %}
+    <div class="collapse mb-4" id="editCollection">
+        <form method="POST"
+              action="{{ url_for('collections.edit_collection', collection_id=collection.id) }}"
+              class="mb-2">
+            <div class="input-group">
+                <input type="text" name="name" class="form-control"
+                       value="{{ collection.name }}" maxlength="50" required>
+                <button type="submit" class="btn btn-primary">Save changes</button>
+            </div>
+        </form>
+        <form method="POST"
+              action="{{ url_for('collections.delete_collection', collection_id=collection.id) }}">
+            <button type="submit" class="btn btn-danger btn-sm">Delete collection</button>
+        </form>
+    </div>
+    {% endif %}
+ 
+    {% if collection.games %}
+    <div class="row">
+        {% for game in collection.games %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                {% if game.cover_url %}
+                <img src="{{ game.cover_url }}" alt="{{ game.title }}" class="card-img-top">
+                {% else %}
+                <div class="bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center"
+                     style="height: 200px;">
+                    <span class="text-muted">No cover available</span>
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="{{ url_for('game_page', game_id=game.id) }}">
+                            {{ game.title }}
+                        </a>
+                    </h5>
+                    {% if current_user.is_authenticated and current_user.id == collection.user_id %}
+                    <form method="POST"
+                          action="{{ url_for('collections.remove_game_from_collection',
+                                             collection_id=collection.id,
+                                             game_id=game.id) }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            Remove from collection
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="text-muted">No games in this collection yet.</p>
+    {% endif %}
+ 
+</div>
+{% endblock %}
