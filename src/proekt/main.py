@@ -48,9 +48,15 @@ def profile(user_id):
         if not current_user.is_authenticated and user.role != UserRoles.STUDIO:
             abort(403)
 
-        tags_lst = list(user.tags) if current_user.is_authenticated and current_user.id == user.id else []
+        group_tags = []
+        if current_user.is_authenticated and current_user.id == user.id:
+            grouped = {}
+            for t in user.tags:
+                grouped.setdefault(t.tag, []).append(t)
+            group_tags = list(grouped.items())
 
-        return render_template("user_profile.html", user=user, UserRoles=UserRoles, tags=tags_lst)
+        return render_template("user_profile.html", user=user,
+                               UserRoles=UserRoles, group_tags=group_tags)
 
 @app.route("/search")
 def search():

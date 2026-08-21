@@ -117,39 +117,54 @@
 
     <h2 class="h4 mt-5 mb-3">My Tags</h2>
 
-    {% if tags %}
+    {% if group_tags %}
     <div class="list-group">
-        {% for tag in tags %}
+        {% for tag_text, entries in group_tags %}
         <div class="list-group-item">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h5 class="mb-1"> {{ tag.tag }} </h5>
-                    <p class="mb-0">
-                        <a href="{{ url_for('game_page', game_id=tag.game_id) }}">
-                            {{ tag.game.title }}
-                        </a>
-                    </p>
+                    <h5 class="mb-1">
+                        {{ tag_text }} 
+                        <span class="badge text-bg-secondary">{{ entries | length }} game(s)</span>
+                    </h5>
+                    <ul class="list-unstyled mb-0">
+                        {% for entry in entries %}
+                        <li>
+                            <a href="{{ url_for('game_page', game_id=entry.game_id) }}">
+                                {{ entry.game.title }}
+                            </a>
+                            <form method="POST"
+                                  action="{{ url_for('tags.delete_tag', tag_id=entry.id) }}"
+                                  class="d-inline">
+                                <button type="submit"
+                                        class="btn-close"
+                                        aria-label="Remove from this game">
+                                </button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
                 </div>
         
                 {% if current_user.is_authenticated and current_user.id == user.id %}
                 <button class="btn btn-sm btn-secondary"
                         type="button"
                         data-bs-toggle="collapse"
-                        data-bs-target="#editTag{{ tag.id }}">
+                        data-bs-target="#editTagGroup{{ loop.index }}">
                         Edit
                 </button>
                 {% endif %}
         </div>
 
             {% if current_user.is_authenticated and current_user.id == user.id %}
-            <div class="collapse mt-3" id="editTag{{ tag.id }}">
-
-                <form method="POST" action="{{ url_for('tags.edit_tag', tag_id=tag.id) }}">
+            <div class="collapse mt-3" id="editTagGroup{{ loop.index }}">
+                <form method="POST" action="{{ url_for('tags.edit_tag') }}">
+                    <input type="hidden" name="old_tag" value="{{ tag_text }}">
                     <div class="mb-2">
-                        <label class="form-label">Tag</label>
-                        <input type="text" name="tag"
+                        <label class="form-label">Rename tag</label>
+                        <input type="text" name="new_tag"
                                class="form-control"
-                               value="{{ tag.tag }}"
+                               value="{{ tag_text }}"
                                maxlength="50"
                                required>
                     </div>
@@ -157,16 +172,6 @@
                         Save changes
                     </button>
                 </form>
-
-                <form method="POST"
-                    action="{{ url_for('tags.delete_tag', tag_id=tag.id) }}"
-                    class="mt-2">
-
-                    <button type="submit" class="btn btn-sm btn-danger">
-                        Delete
-                    </button>
-                </form>
-
             </div>
                 {% endif %}
         </div>

@@ -55,40 +55,37 @@ def remove_tag(tag_id):
 
     return redirect(url_for("game_page", game_id=game_id))
 
-@tags.route("/profile/tags/<int:tag_id>/edit", methods=["POST"])
+@tags.route("/profile/tags/edit", methods=["POST"])
 @login_required
-def edit_tag(tag_id):
-    tag_text = request.form.get("tag", "").strip()
- 
-    with SessionLocal() as session:
-        tag = session.get(Tag, tag_id)
-        if tag is None:
-            abort(404)
-        if tag.user_id != current_user.id:
-            abort(403)
- 
-        if not tag_text:
-            flash("Tag can't be empty.")
-            return redirect(url_for("profile", user_id=tag.user_id))
+def edit_tag():
+    old_tag = request.form.get("old_tag", "").strip()
+    new_tag = request.form.get("new_tag", "").strip()
 
-        if len(tag_text) > 50:
-            flash("Tag is too long.")
-            return redirect(url_for("profile", user_id=tag.user_id))
- 
-        duplicate = session.scalar(
-            select(Tag).where(Tag.user_id == current_user.id,
-                              Tag.game_id == tag.game_id,
-                              Tag.tag == tag_text,
-                              Tag.id != tag.id))
-        if duplicate is not None:
-            flash("You already have that tag on this game.")
-            return redirect(url_for("profile", user_id=tag.user_id))
- 
-        tag.tag = tag_text
-        user_id = tag.user_id
+    if not new_tag:
+        flash("Tag can't be empty.")
+        return redirect(url_for("profile", user_id=current_user.id))
+
+    if len(new_tag) > 50:
+        flash("Tag is too long.")
+        return redirect(url_for("profile", user_id=current_user.id))
+
+    with SessionLocal() as session:
+        rows = session.scalars(
+            select(Tag).where(Tag.user_id == current_user.id, Tag.tag == old_tag)).all()
+
+        for row in rows:
+            duplicate = session.scalar(
+                select(Tag).where(Tag.user_id == current_user.id,
+                                  Tag.game_id == row.game_id,
+                                  Tag.tag == new_tag,
+                                  Tag.id != row.id))
+            if duplicate is not None:
+                session.delete(row)
+            else:
+                row.tag = new_tag
+
         session.commit()
- 
-    return redirect(url_for("profile", user_id=user_id))
+    return redirect(url_for("profile", user_id=current_user.id))
 
 @tags.route("/profile/tags/<int:tag_id>/delete", methods=["POST"])
 @login_required
@@ -99,9 +96,9 @@ def delete_tag(tag_id):
             abort(404)
         if tag.user_id != current_user.id:
             abort(403)
- 
+
         user_id = tag.user_id
         session.delete(tag)
         session.commit()
- 
+
     return redirect(url_for("profile", user_id=user_id))
