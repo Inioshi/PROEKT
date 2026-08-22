@@ -12,7 +12,8 @@ from werkzeug.security import generate_password_hash
 
 from proekt import database
 from proekt.models import (Base, User, UserRoles, VideoGame, Genre,
-                           Collection, DefaultCollection, Tag, Friendship, FriendStatus)
+                           Collection, DefaultCollection, Tag, Friendship, FriendStatus,
+                           Review)
 from proekt.main import app as flask_app
 
 PASSWORD = "1234"
@@ -77,6 +78,15 @@ def make_game(studio_id: int, genres: list[str] | None = None) -> int:
         return game.id
 
 
+def make_review(user_id: int, game_id: int, rating: int = 3, comment: str = "") -> int:
+    """Make a test review"""
+    with database.SessionLocal() as session:
+        review = Review(user_id=user_id, game_id=game_id, rating=rating, comment=comment)
+        session.add(review)
+        session.commit()
+        return review.id
+
+
 def login_as(app: Flask, username: str):
     """Login into test user profile"""
     client = app.test_client()
@@ -84,7 +94,7 @@ def login_as(app: Flask, username: str):
     return client
 
 
-def test_crud_tags(app: Flask) -> None:
+def test_create_delete_tags(app: Flask) -> None:
     """Test making a tag and deleting it"""
     user_id = make_user("ivan")
     game_id = make_game(make_user("studio"))
@@ -103,7 +113,7 @@ def test_crud_tags(app: Flask) -> None:
         assert session.get(Tag, tag_id) is None
 
 
-def test_removetag_asother_user(app: Flask) -> None:
+def test_remove_other_user_tag(app: Flask) -> None:
     """Test user trying to delete somebody else's tags"""
     ivan_id = make_user("ivan")
     make_user("sasho")
@@ -121,8 +131,24 @@ def test_removetag_asother_user(app: Flask) -> None:
     assert response.status_code == 403
 
 
-def test_default_collection_logic(app: Flask) -> None:
-    """Test default collections"""
+def test_only_own_tags_visible(app: Flask) -> None:
+    """Test a user can only see their own tags"""
+    make_user("ivan")
+    make_user("sasho")
+    studio_id = make_user("studio")
+    game_a = make_game(studio_id)
+    game_b = make_game(studio_id)
+
+    login_as(app, "ivan").post(f"/video_games/{game_a}/tags", data={"tag": "cozy"})
+    login_as(app, "sasho").post(f"/video_games/{game_b}/tags", data={"tag": "nice"})
+
+    response = login_as(app, "ivan").get("/tags/nice")
+
+    assert response.status_code == 404
+
+
+def test_delete_default_collection(app: Flask) -> None:
+    """Test default collection can't be deleted"""
     user_id = make_user("ivan")
 
     with database.SessionLocal() as session:
@@ -167,7 +193,6 @@ def test_default_collection_exclusivity(app: Flask) -> None:
         playing_id = playing.id
 
     client.post(f"/collections/{wishlist_id}/games", data={"game_id": game_id},)
-
     client.post(f"/collections/{playing_id}/games", data={"game_id": game_id},)
 
     with database.SessionLocal() as session:
@@ -179,6 +204,27 @@ def test_default_collection_exclusivity(app: Flask) -> None:
 
         assert game_id not in [game.id for game in wishlist.games]
         assert game_id in [game.id for game in playing.games]
+
+
+def test_delete_other_users_collection(app: Flask) -> None:
+    """Test a user can't delete somebody else's collection"""
+    ivan_id = make_user("ivan")
+    make_user("sasho")
+    login_as(app, "ivan").post("/collections", data={"name": "Roguelikes"})
+
+    with database.SessionLocal() as session:
+        collection = session.scalar(
+            select(Collection).where(Collection.user_id == ivan_id,
+                                     Collection.name == "Roguelikes"))
+        assert collection is not None
+        collection_id = collection.id
+
+    response = login_as(app, "sasho").post(f"/collections/{collection_id}/delete")
+
+    assert response.status_code == 403
+
+    with database.SessionLocal() as session:
+        assert session.get(Collection, collection_id) is not None
 
 
 def test_friendships(app: Flask) -> None:
@@ -260,6 +306,17 @@ def test_crud_for_games_as_studio(app: Flask) -> None:
     assert forbidden_response.status_code == 403
 
 
+def test_user_game_create(app: Flask) -> None:
+    """Test a plain registered user cannot create a game"""
+    make_user("ivan")
+    client = login_as(app, "ivan")
+
+    response = client.post("/video_games", data={"title": "New Game",
+                                                 "short_description": "desc"})
+
+    assert response.status_code == 403
+
+
 def test_genre_crud_studio_admin(app: Flask) -> None:
     """Test only admin can remove genres"""
 
@@ -290,6 +347,23 @@ def test_genre_crud_studio_admin(app: Flask) -> None:
         assert genre_id not in [genre.id for genre in game.genres]
 
 
+def test_delete_other_review_studio(app: Flask) -> None:
+    """Test a studio can't delete a review on a game it doesn't own"""
+    studio_a = make_user("studio_a", role=UserRoles.STUDIO)
+    make_user("studio_b", role=UserRoles.STUDIO)
+    reviewer_id = make_user("ivan")
+    game_id = make_game(studio_a)
+    review_id = make_review(reviewer_id, game_id, rating=1, comment="mean review")
+
+    response = login_as(app, "studio_b").post(
+        f"/video_games/{game_id}/reviews/{review_id}/delete")
+
+    assert response.status_code == 403
+
+    with database.SessionLocal() as session:
+        assert session.get(Review, review_id) is not None
+
+
 def test_crud_friendships_as_admin(app: Flask) -> None:
     """Test admin removing friendships"""
 
@@ -317,3 +391,30 @@ def test_crud_friendships_as_admin(app: Flask) -> None:
 
     with database.SessionLocal() as session:
         assert session.get(Friendship, friendship_id) is None
+
+
+def test_remove_friendship_not_admin(app: Flask) -> None:
+    """Test a regular user can't remove somebody else's friend"""
+    ivan_id = make_user("ivan")
+    sasho_id = make_user("sasho")
+    make_user("mallory")
+
+    login_as(app, "ivan").post(f"/friends/request/{sasho_id}")
+
+    with database.SessionLocal() as session:
+        friendship = session.scalar(
+            select(Friendship).where(
+                Friendship.user_id == ivan_id,
+                Friendship.friend_id == sasho_id,))
+        assert friendship is not None
+        friendship_id = friendship.id
+
+    login_as(app, "sasho").post(f"/friends/{friendship_id}/accept")
+
+    response = login_as(app, "mallory").post(
+        f"/admin/users/{ivan_id}/friends/{sasho_id}/remove")
+
+    assert response.status_code == 403
+
+    with database.SessionLocal() as session:
+        assert session.get(Friendship, friendship_id) is not None
