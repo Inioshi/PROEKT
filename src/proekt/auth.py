@@ -68,12 +68,12 @@ def register():
             session.flush()
 
             default_collections = [
-                Collection(user_id=user.id, name="Wishlisted", is_default=True,
+                Collection(user_id=user.id, name="Wishlist", is_default=True,
                            default_type=DefaultCollection.WISHLIST),
                 Collection(user_id=user.id, name="Playing", is_default=True,
                            default_type=DefaultCollection.PLAYING),
                 Collection(user_id=user.id, name="Completed", is_default=True,
-                           default_type=DefaultCollection.COMPLETED),]
+                           default_type=DefaultCollection.COMPLETED)]
 
             session.add_all(default_collections)
             session.commit()
