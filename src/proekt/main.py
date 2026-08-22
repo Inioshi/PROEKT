@@ -6,7 +6,7 @@ from proekt.database import SessionLocal
 from proekt.models import VideoGame, User, UserRoles, Genre, Collection, Friendship, FriendStatus
 from proekt.recommendations import compute_recommendations
 
-from proekt.crud import reviews, tags, collections, friends
+from proekt.crud import reviews, tags, collections, friends, games, admin
 
 app = Flask(__name__)
 
@@ -14,12 +14,13 @@ app.config["SECRET_KEY"] = "passpass"
 
 login_manager.init_app(app)
 app.register_blueprint(auth)
-#app.register_blueprint(games)
 
 app.register_blueprint(reviews)
 app.register_blueprint(tags)
 app.register_blueprint(collections)
 app.register_blueprint(friends)
+app.register_blueprint(games)
+app.register_blueprint(admin)
 
 @app.route("/")
 def index():
@@ -38,13 +39,21 @@ def game_page(game_id):
             else None)
 
         user_collections = []
+        can_manage_game = False
+        is_admin = False
         if current_user.is_authenticated:
             user_collections = session.scalars(
                 select(Collection).where(Collection.user_id == current_user.id)).all()
+            is_admin = current_user.role == UserRoles.ADMIN
+            can_manage_game = is_admin or (current_user.role == UserRoles.STUDIO
+                                           and game.studio_id == current_user.id)
 
         return render_template("video_game.html", game=game,
                                average_rating=average_rating,
-                               user_collections=user_collections)
+                               user_collections=user_collections,
+                               can_manage_game=can_manage_game,
+                               is_admin=is_admin)
+
 
 @app.route("/profile/<int:user_id>")
 def profile(user_id):
@@ -55,6 +64,8 @@ def profile(user_id):
             abort(404)
         if not current_user.is_authenticated and user.role != UserRoles.STUDIO:
             abort(403)
+
+        is_admin_viewer = current_user.is_authenticated and current_user.role == UserRoles.ADMIN
 
         group_tags = []
         if current_user.is_authenticated and current_user.id == user.id:
@@ -73,6 +84,9 @@ def profile(user_id):
                 select(Friendship).where(Friendship.friend_id == user.id,
                                          Friendship.status == FriendStatus.PENDING)).all()
         elif current_user.is_authenticated:
+            if is_admin_viewer:
+                friends_list = user.friends
+
             exists = session.scalar(
                 select(Friendship).where(
                     or_(and_(Friendship.user_id == current_user.id, Friendship.friend_id == user.id),
@@ -88,6 +102,7 @@ def profile(user_id):
                                group_tags=group_tags, friends_list=friends_list,
                                incoming_requests=incoming_requests,
                                friendship_with_viewer=friendship_with_viewer)
+
 
 @app.route("/search")
 def search():

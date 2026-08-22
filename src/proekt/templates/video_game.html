@@ -21,6 +21,46 @@
         {% endif %}
     {% endwith %}
 
+
+    {% if can_manage_game %}
+    <div class="mt-4">
+        <button class="btn btn-sm btn-secondary"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#editGame">
+            Manage game
+        </button>
+        <div class="collapse mt-3" id="editGame">
+            <form method="POST"
+                  action="{{ url_for('games.edit_game', game_id=game.id) }}"
+                  class="mb-3">
+                <div class="mb-2">
+                    <label class="form-label">Title</label>
+                    <input type="text" name="title" class="form-control"
+                           value="{{ game.title }}" maxlength="50">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Description</label>
+                    <textarea name="short_description"
+                              class="form-control"
+                              rows="3"
+                              maxlength="600">{{ game.short_description }}</textarea>
+                </div>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    Save changes
+                </button>
+            </form>
+            <form method="POST"
+                  action="{{ url_for('games.delete_game', game_id=game.id) }}">
+                <button type="submit" class="btn btn-sm btn-danger">
+                    Delete game
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+
     <div class="row justify-content-center">
 
         <div class="col-md-4 text-center">
@@ -34,15 +74,60 @@
             {% endif %}
         </div>
 
+        {% if can_manage_game %}
+        <div class="mt-2">
+            <form method="POST"
+                  action="{{ url_for('games.set_cover', game_id=game.id) }}"
+                  class="input-group input-group-sm mb-1">
+                <input type="text" name="cover_url" class="form-control"
+                       placeholder="Cover image URL" maxlength="200" required>
+                <button type="submit" class="btn btn-outline-secondary">Set cover</button>
+            </form>
+
+            {% if is_admin and game.cover_url %}
+            <form method="POST"
+                  action="{{ url_for('games.remove_cover', game_id=game.id) }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    Remove cover
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <div class="col-md-6">
             <p>
                 <strong>Genres:</strong>
                 {% for genre in game.genres %}
                     <span class="badge bg-secondary">
                         {{ genre.name }}
+                        {% if is_admin %}
+                        <form method="POST"
+                              action="{{ url_for('games.remove_genre', game_id=game.id, genre_id=genre.id) }}"
+                              class="d-inline">
+                            <button type="submit"
+                                    class="btn-close btn-close-white"
+                                    style="font-size: 0.6em;"
+                                    aria-label="Remove genre">
+                            </button>
+                        </form>
+                        {% endif %}
                     </span>
                 {% endfor %}
             </p>
+ 
+            {% if can_manage_game %}
+            <form method="POST"
+                  action="{{ url_for('games.add_genre', game_id=game.id) }}"
+                  class="mb-3">
+                <div class="input-group input-group-sm" style="max-width: 300px;">
+                    <input type="text" name="genre" class="form-control"
+                           placeholder="Add genre" maxlength="20" required>
+                    <button type="submit" class="btn btn-outline-secondary">Add</button>
+                </div>
+            </form>
+            {% endif %}
+ 
 
             <p>
                 <strong>Studio:</strong>
@@ -215,6 +300,16 @@
                                 {{ review.created_at.strftime("%d %B %Y") }}
                             </small>
                         </div>
+                        {% if can_manage_game %}
+                            <form method="POST"
+                                  action="{{ url_for('games.delete_review_as_manager',
+                                                     game_id=game.id, review_id=review.id) }}"
+                                  class="mt-2">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    Remove review
+                                </button>
+                            </form>
+                            {% endif %}
                     </div>
                 </div>
             {% else %}

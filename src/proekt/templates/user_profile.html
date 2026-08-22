@@ -7,25 +7,44 @@
 
     <h1 class="display-4 fw-bold mb-4">{{ user.username }}</h1>
 
-    {% if current_user.is_authenticated and current_user.id != user.id %}
+{% if current_user.is_authenticated and current_user.id == user.id
+          and (user.role == UserRoles.STUDIO or user.role == UserRoles.ADMIN) %}
     <div class="mb-4">
-        {% if friendship_with_viewer == "friends" %}
-            <form method="POST" action="{{ url_for('friends.remove_friend', friend_id=user.id) }}">
-                <button type="submit" class="btn btn-outline-danger btn-sm">Remove Friend</button>
-            </form>
-        {% elif friendship_with_viewer == "pending_sent" %}
-            <button class="btn btn-secondary btn-sm" disabled>Friend Request Sent</button>
-        {% elif friendship_with_viewer == "pending_received" %}
-            <span class="text-muted">This user sent you a friend request - respond from your own profile.</span>
-        {% else %}
-            <form method="POST" action="{{ url_for('friends.send_request', friend_id=user.id) }}">
-                <button type="submit" class="btn btn-primary btn-sm">Add Friend</button>
-            </form>
-        {% endif %}
-    </div>
-    {% endif %}
+        <button class="btn btn-sm btn-secondary"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#createGame">
+            + Add a game
+        </button>
 
-    {% if current_user.is_authenticated and current_user.id == user.id %}
+        <div class="collapse mt-3" id="createGame">
+            <form method="POST" action="{{ url_for('games.create_game') }}">
+                <div class="mb-2">
+                    <label class="form-label">Title</label>
+                    <input type="text" name="title" class="form-control" maxlength="50" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Description</label>
+                    <textarea name="short_description"
+                              class="form-control"
+                              rows="3"
+                              maxlength="600"
+                              required></textarea>
+                </div>
+                {% if user.role == UserRoles.ADMIN %}
+                <div class="mb-2">
+                    <label class="form-label">Studio user ID</label>
+                    <input type="number" name="studio_id" class="form-control" required>
+                </div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary btn-sm">Create game</button>
+            </form>
+        </div>
+    </div>
+{% endif %}
+
+
+{% if current_user.is_authenticated and current_user.id == user.id %}
     <h2 class="h4 mt-5 mb-3">Friend Requests</h2>
 
     {% if incoming_requests %}
@@ -51,7 +70,10 @@
     {% else %}
         <p class="text-muted">No pending friend requests.</p>
     {% endif %}
+{% endif %}
 
+    {% if current_user.is_authenticated
+          and (current_user.id == user.id or current_user.role == UserRoles.ADMIN) %}
     <h2 class="h4 mt-5 mb-3">Friends</h2>
 
     {% if friends_list %}
@@ -61,15 +83,28 @@
             <a href="{{ url_for('profile', user_id=friend.id) }}">
                 {{ friend.username }}
             </a>
+            {% if current_user.id == user.id %}
             <form method="POST"
                   action="{{ url_for('friends.remove_friend', friend_id=friend.id) }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
             </form>
+            {% elif current_user.role == UserRoles.ADMIN %}
+            <form method="POST"
+                  action="{{ url_for('admin.remove_user_friend', user_id=user.id, friend_id=friend.id) }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Remove (admin)</button>
+            </form>
+            {% endif %}
         </div>
         {% endfor %}
     </div>
     {% else %}
-        <p class="text-muted">You haven't added any friends yet.</p>
+        <p class="text-muted">
+            {% if current_user.id == user.id %}
+                You haven't added any friends yet.
+            {% else %}
+                {{ user.username }} hasn't added any friends yet.
+            {% endif %}
+        </p>
     {% endif %}
     {% endif %}
 
@@ -80,6 +115,46 @@
         </a>
     </div>
     {% endif %}
+
+{% if user.role == UserRoles.STUDIO %}
+    <h2 class="h4 mt-5 mb-3">Games by {{ user.username }}</h2>
+
+    {% if user.made_games %}
+    <div class="row">
+        {% for game in user.made_games %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                {% if game.cover_url %}
+                <img src="{{ game.cover_url }}" alt="{{ game.title }}" class="card-img-top">
+                {% else %}
+                <div class="bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center"
+                     style="height: 200px;">
+                    <span class="text-muted">No cover available</span>
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="{{ url_for('game_page', game_id=game.id) }}">
+                            {{ game.title }}
+                        </a>
+                    </h5>
+                    <p class="card-text">
+                        {% if game.average_rating is not none %}
+                            ⭐ {{ "%.1f" | format(game.average_rating) }} / 5
+                        {% else %}
+                            <span class="text-muted">No ratings yet</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="text-muted">This studio hasn't added any games yet.</p>
+    {% endif %}
+    {% endif %}
+
 
     <h2 class="h4 mt-5 mb-3">Collections</h2>
 
@@ -229,10 +304,10 @@
             {% endif %}
         </div>
         {% endfor %}
+    </div>
         {% else %}
             <p class="text-muted">No reviews yet.</p>
         {% endif %}
-    </div>
 
     {% if current_user.is_authenticated and current_user.id == user.id %}
     <h2 class="h4 mt-5 mb-3">My Tags</h2>
